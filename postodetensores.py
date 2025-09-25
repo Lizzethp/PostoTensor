@@ -17,46 +17,50 @@
 import numpy as np
 def produto_tensorial(a, b, c):
     """
-    Calcula o produto tensorial de três vetores: a⊗b⊗c.
-
-    Parâmetros:
-    - a, b, c: vetores
-
-    Retorna:
-    - lista com 8 elementos
+    Producto tensorial a⊗b⊗c.
+    Devuelve solo la lista en el orden:
+      [a1*b1*c1, a1*b1*c2, a2*b1*c1, a2*b1*c2,
+       a1*b2*c1, a1*b2*c2, a2*b2*c1, a2*b2*c2]
     """
-    lista = []
-    for ai in a:
-        for bj in b:
-            for ck in c:
-                lista.append(ai * bj * ck)
+    a1, a2 = a
+    b1, b2 = b
+    c1, c2 = c
 
-    # Reorganizar em tensor 2x2x2
-    tensor = np.array([[[lista[0], lista[4]], [lista[1], lista[5]]],
-                       [[lista[2], lista[6]], [lista[3], lista[7]]]])
+    lista = [
+        a1*b1*c1, a1*b1*c2, a2*b1*c1, a2*b1*c2,
+        a1*b2*c1, a1*b2*c2, a2*b2*c1, a2*b2*c2
+    ]
+    return lista
 
-    return lista, tensor
 
-if __name__ == "__main__":
-    a = [1, -1]
-    b = [3, 0]
-    c = [-2, -2]
+# Ejemplo
+#a = [2, 1]
+#b = [0.5, -1]
+#c = [-2, -3]
+#t1 = produto_tensorial(a, b, c)
+#t2 = produto_tensorial(c, b, a)
+#t3 = [1, 0, 0, 1, 1, 1, 0, 1]
 
-    lista, tensor = produto_tensorial(a, b, c)
-    #Se você quer testar o posto do tensor construído, deixa assim. Se quer testor outro exemplo abaixo, colocar em comment o seguinte print
-    print("Lista:", lista)
+#print("T1:", t1)
+#print("T2:", t2)
+#print("T3:", t3)
+
+#print("Soma:", soma_tensores([t1, t2, t3]))
+#Se você quer testar o posto do tensor construído, deixa assim. Se quer testor outro exemplo abaixo, colocar em comment o seguinte print
+#lista = produto_tensorial(a, b, c)   
+#print("Lista:", lista)
 
 
 # Lista unidimensional com os 8 números
 #Produto tensorial de três fatores, a=[a1, a2], b = [b1, b2], c = [c1, c2]
-#a⊗b=[a1b1, a1b2, a2b1, a2b2]⊗c=[a1b1c1, a1b2c1, a2b1c1, a2b2c1, a1b1c2, a1b2c2, a2b1c2, a2b2c2]
+#a⊗b=[a1b1, a1b2, a2b1, a2b2]⊗c=[a1b1c1, a1b1c2, a2b2c1, a2b1c2, a1b2c1, a1b2c2, a2b2c1, a2b2c2]
 # Lista unidimensional com os 8 números
 #Hiperdeterminante 0
 #lista = [1, 0, 0, 1, 1, 1, 0, 1]
 #Superdiagonal
 #lista = [0, 0, 0, 1, 1, 0, 0, 0]
 #Uma fatia multiplo escalar da outra
-#lista = [-1, 7, 2, 0, -2, 14, 4, 0]
+lista = [-1, 7, 2, 0, -2, 14, 4, 0]
 #Hiperdeterminante de Cayley negativo
 #lista = [2, 0, 0, 1, 0, 3, -5, 0]
 #Todas as fatias singulares
@@ -68,6 +72,8 @@ if __name__ == "__main__":
 # Reorganizar a lista para coincidir com a forma desejada: 2x2x2
 tensor = np.array([[[lista[0], lista[4]], [lista[1], lista[5]]],
                    [[lista[2], lista[6]], [lista[3], lista[7]]]])
+def soma_tensores(tensores):
+    return list(np.sum(np.array(tensores, dtype=float), axis=0))
 # Mostrar fatias do tensor
 def mostrar_fatias(tensor):
     # Fatias frontais (fixo k)
@@ -120,25 +126,27 @@ def passo_2(lista):
 
 # Passo 3: verifica se todas as fatias são singulares
 def passo_3(lista, mostrar=False):
+
+    # Reconstruir tensor 2x2x2
     tensor = np.array([
         [[lista[0], lista[4]], [lista[1], lista[5]]],
         [[lista[2], lista[6]], [lista[3], lista[7]]]
-    ])
+    ], dtype=float)
 
-    if mostrar:
-        fatias_frontais, _, _ = mostrar_fatias(tensor)
-    else:
+    fatias_frontais, fatias_horizontais, fatias_verticais = mostrar_fatias(tensor) if mostrar else (
+        [tensor[:, :, k] for k in range(2)],
+        [tensor[i, :, :] for i in range(2)],
+        [tensor[:, j, :] for j in range(2)]
+    )
 
-        fatias_frontais = [tensor[:, :, k] for k in range(tensor.shape[2])]
+    # juntar as fatias
+    todas_fatias = fatias_frontais + fatias_horizontais + fatias_verticais
 
-    fatias_nao_singulares = []
-    for fatia in fatias_frontais:
+    # Verificar singularidad de cada fatia
+    for fatia in todas_fatias:
         if abs(np.linalg.det(fatia)) > 1e-12:
-            fatias_nao_singulares.append(fatia)
-
-    return fatias_nao_singulares
-
-
+            return False
+    return True
 
 # Verifica se duas matrizes são múltiplos escalares
 def e_multiplo_escalar(matriz1, matriz2):
@@ -153,52 +161,62 @@ def e_multiplo_escalar(matriz1, matriz2):
                 return False
     return True
 
-
 # Passo 4: verifica se há fatias múltiplos escalares
-def passo_4(fatias_nao_singulares):
-    if len(fatias_nao_singulares) < 2:
-        return False
-    for i in range(len(fatias_nao_singulares)):
-        for j in range(i + 1, len(fatias_nao_singulares)):
-            if e_multiplo_escalar(fatias_nao_singulares[i], fatias_nao_singulares[j]):
-                return True
+def passo_4(fatias, mostrar=False):
+    
+    # Pega apenas fatias não singulares
+    fatias_nao_sing = [f for f in fatias if abs(np.linalg.det(f)) > 1e-12]
+
+    if len(fatias_nao_sing) == 2:
+        f1, f2 = fatias_nao_sing
+        v1, v2 = f1.flatten(), f2.flatten()
+
+        # Escolhe as posições onde v1 não é zero
+        idx = np.where(np.abs(v1) > 1e-12)[0]
+
+        if len(idx) == 0:  # se todos eram zeros, não dá pra comparar
+            return False
+
+        # Calcula razão usando a primeira posição não nula
+        ratio = v2[idx[0]] / v1[idx[0]]
+
+        # Verifica se todas as entradas batem com essa razão
+        if np.allclose(v2, ratio * v1):
+            if mostrar:
+                print(f"As fatias não singulares são múltiplos escalares")
+            return True
     return False
 
-
 # Cálculo do hiperdeterminante de Cayley
-def calcular_hiperdeterminante(lista):
-    x_111, x_112, x_121, x_122, x_211, x_212, x_221, x_222 = lista
+def calcular_hipderdeterminante(lista):
+    a, b, c, d, e, f, g, h = lista
 
-    term1 = x_111**2 * x_222**2 + x_112**2 * x_221**2 + x_121**2 * x_212**2 + x_122**2 * x_211**2
-    term2 = 2 * (x_111 * x_112 * x_221 * x_222 + x_111 * x_121 * x_212 * x_222 +
-                 x_111 * x_122 * x_211 * x_222 + x_112 * x_121 * x_212 * x_221 +
-                 x_112 * x_122 * x_211 * x_221 + x_121 * x_122 * x_211 * x_212)
-    term3 = 4 * (x_111 * x_122 * x_212 * x_221 + x_112 * x_121 * x_211 * x_222)
+    delta = (
+        a**2 * h**2 + b**2 * g**2 + c**2 * f**2 + d**2 * e**2
+        - 2 * (a*b*g*h + a*c*f*h + a*d*e*h
+               + b*c*f*g + b*d*e*g + c*d*e*f)
+        + 4 * (a*d*f*g + b*c*e*h)
+    )
+    return delta
+# Passo 5: Hiperdeterminante
+    delta = calcular_hipderdeterminante(lista)
 
-    return term1 - term2 + term3
-
-
-# Passo 5: cálculo do posto a partir do hiperdeterminante
-def passo_5(lista, corpo="R"):
-    delta = calcular_hiperdeterminante(lista)
-
-    if corpo == "R":  # Reais
-        if delta > 0:
-            return 2, delta
-        elif delta == 0:
-            return 3, delta
-        else: #delta < 0
-            return 3, delta
-
-    elif corpo == "C":  # Complexos
-        if delta != 0:
-            return 2, delta
+    # Casos do teorema
+    if abs(delta) < 1e-12:  # Δ(T) = 0
+        return f"Δ(T) = 0: posto 2"
+    else:  # Δ(T) diferente de 0
+        if delta > 0 and corpo == "R":
+            return f"Δ(T) = {delta} > 0 sobre ℝ (posto 2) ou diferente de 0 sobre ℂ (posto 3)"
         else:
-            return 3, delta
-
+            return f"Δ(T) = {delta} diferente de 0: posto 3"
 
 # Função principal
 def verificar_posto(lista, corpo="R", mostrar=False):
+    # Reconstruir el tensor desde la lista
+    tensor = np.array([
+        [[lista[0], lista[4]], [lista[1], lista[5]]],
+        [[lista[2], lista[6]], [lista[3], lista[7]]]
+    ], dtype=float)
     # Passo 1: nula
     if passo_1(lista):
         return "A lista é nula, tem posto 0"
@@ -207,22 +225,31 @@ def verificar_posto(lista, corpo="R", mostrar=False):
     if passo_2(lista):
         return "A lista é superdiagonal, tem posto 2"
 
-    # Passo 3: todas as fatias singulares
-    fatias_nao_singulares = passo_3(lista, mostrar=mostrar)
-    if len(fatias_nao_singulares) == 0:
-        return "A lista é de posto 1, todas as fatias são singulares"
+    # Passo 3: verificar todas as fatias
+    fatias_frontais, fatias_horizontais, fatias_verticais = mostrar_fatias(tensor) if mostrar else (
+        [tensor[:, :, k] for k in range(2)],
+        [tensor[i, :, :] for i in range(2)],
+        [tensor[:, j, :] for j in range(2)]
+    )
 
-    # Passo 4: múltiplos escalares
-    if passo_4(fatias_nao_singulares):
-        return "A lista é de posto 2, pois uma fatia é múltiplo escalar de outra"
+    todas_fatias = fatias_frontais + fatias_horizontais + fatias_verticais
+
+    # Se todas são singulares -> posto 1
+    if all(abs(np.linalg.det(f)) < 1e-12 for f in todas_fatias):
+        return "A lista é de posto 1, todas as fatias são singulares"
+# Passo 4: múltiplos escalares
+    if (passo_4(fatias_frontais, mostrar) or
+        passo_4(fatias_horizontais, mostrar) or
+        passo_4(fatias_verticais, mostrar)):
+        return "O tensor é de posto 2 (existe um par de fatias múltiplas escalares)"
 
     # Passo 5: Hiperdeterminante de Cayley
     posto_R, delta = passo_5(lista, "R")
     posto_C, _ = passo_5(lista, "C")
 
     if posto_R == 2:
-        return f"Δ(T) = {delta} > 0 (ℝ) ou ≠ 0 (ℂ): posto 2"
+        return f"Δ(T) = {delta} > 0 (ℝ) ou diferente de 0 (ℂ): posto 2"
     else:
         return f"Δ(T) = {delta}: posto 3"
-
-print(verificar_posto(lista, mostrar=True))
+if __name__ == "__main__":
+    print(verificar_posto(lista, mostrar=True))
